@@ -1,7 +1,7 @@
 import telebot
 import json
 import os
-
+from datetime import datetime
 
 def load_json():
     if not os.path.exists("bd.json"):  # Check if file exists
@@ -31,7 +31,7 @@ user_data = {}
 
 
 
-bot = telebot.TeleBot("API_KEY")
+bot = telebot.TeleBot("7947700211:AAEagVGIM3oSk23lvTbbaBzn74TVL8Bvfg0")
 
 
 
@@ -48,34 +48,41 @@ def instruct(message):
 def get_name(message):
     global name
     name = message.text
-    user_data[message.chat.id]["name"] = name
-    bot.send_message(message.chat.id, f"type the birthday date for {name}! eg: DD/MM")
-    bot.register_next_step_handler(message, get_date)
+    if "/" not in name:
+        user_data[message.chat.id]["name"] = name
+        bot.send_message(message.chat.id, f"type the birthday date for {name}! eg: DD/MM")
+        bot.register_next_step_handler(message, get_date)
+        
+    else:
+        bot.send_message(message.chat.id, "Sorry but name cannot contain / symbol!")
+    
 
 def get_date(message):
-    global birthday_date
-    birthday_date = message.text
     user_id = message.chat.id
+    date = message.text
+
     try:
-        if len(birthday_date.split("/")) == 2:  # Basic date format validation
-            name = user_data[user_id]['name']
-            
-            # Ensure user-specific data exists
-            if str(user_id) not in birthdays:
-                birthdays[str(user_id)] = {}
-            
-            # Save the birthday
-            birthdays[str(user_id)][name] = birthday_date
-            save_json(birthdays)
-            bot.send_message(message.chat.id, f"Birthday for {name} on {birthday_date} has been saved!")
-        else:
-            raise ValueError
+        
+        current_year = datetime.now().year
+        date_with_year = f"{current_year}-{date}"
+
+
+        parsed_date = datetime.strptime(date_with_year, "%Y-%d/%m")
+        
+        name = user_data[user_id]['name']
+        if str(user_id) not in birthdays:
+            birthdays[str(user_id)] = {}
+        birthdays[str(user_id)][name] = parsed_date.strftime("%d/%m")  
+        save_json(birthdays)
+        bot.send_message(message.chat.id, f"Birthday for {name} on {parsed_date.strftime('%d/%m')} has been saved!")
     except ValueError:
-        bot.send_message(message.chat.id, "Invalid date format. Please use DD/MM.")
-        return
+        
+        bot.send_message(message.chat.id, "Invalid date format. Please use DD/MM. Try again.")
+        bot.register_next_step_handler(message, get_date)  
+
     
-    # Clean up user data
-    user_data.pop(user_id, None)
+    if user_id in user_data:
+        user_data.pop(user_id)
 
 @bot.message_handler(commands=["list"])
 def list_birthdays(message):
@@ -87,4 +94,3 @@ def list_birthdays(message):
     bot.send_message(message.chat.id, reply)
 
 bot.infinity_polling()
-    

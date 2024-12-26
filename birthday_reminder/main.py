@@ -2,21 +2,37 @@ import telebot
 import json
 import os
 
-def load_json(): # Create and load a json file
-    if not os.path.exists("bd.json"): 
+
+def load_json():
+    if not os.path.exists("bd.json"):  # Check if file exists
         with open("bd.json", "w") as file:
-            json.dump({}, file)  
-    with open("bds.json", "r") as file:
-        return json.load(file)  
+            json.dump({}, file)  # Create a new json file 
+    
+    
+    if os.path.getsize("bd.json") == 0: # Check if the file is empty
+        with open("bd.json", "w") as file:
+            json.dump({}, file) 
+
+    with open("birthdays.json", "r") as file:
+        try:
+            return json.load(file)
+        except json.JSONDecodeError:
+            return {}
+    
 
 def save_json(data): # save data to bd.json file
     with open("bd.json", "w") as file:
         json.dump(data, file)
 
 
+
 birthdays = load_json()
 user_data = {}
-bot = telebot.TeleBot("")
+
+
+
+bot = telebot.TeleBot("API_KEY")
+
 
 
 @bot.message_handler(commands=["start"])
@@ -41,11 +57,15 @@ def get_date(message):
     birthday_date = message.text
     user_id = message.chat.id
     try:
-        # Example of date validation (optional: use datetime for stricter checks)
-        if len(birthday_date.split("/")) == 2:
-            user_data[user_id]['date'] = birthday_date
+        if len(birthday_date.split("/")) == 2:  # Basic date format validation
             name = user_data[user_id]['name']
-            birthdays[name] = birthday_date
+            
+            # Ensure user-specific data exists
+            if str(user_id) not in birthdays:
+                birthdays[str(user_id)] = {}
+            
+            # Save the birthday
+            birthdays[str(user_id)][name] = birthday_date
             save_json(birthdays)
             bot.send_message(message.chat.id, f"Birthday for {name} on {birthday_date} has been saved!")
         else:
@@ -53,5 +73,18 @@ def get_date(message):
     except ValueError:
         bot.send_message(message.chat.id, "Invalid date format. Please use DD/MM.")
         return
+    
+    # Clean up user data
+    user_data.pop(user_id, None)
+
+@bot.message_handler(commands=["list"])
+def list_birthdays(message):
+    user_id = str(message.chat.id)
+    if user_id in birthdays and birthdays[user_id]:
+        reply = "Your Saved Birthdays:\n\n" + "\n".join([f"{name}: {date}" for name, date in birthdays[user_id].items()])
+    else:
+        reply = "You have no saved birthdays."
+    bot.send_message(message.chat.id, reply)
 
 bot.infinity_polling()
+    

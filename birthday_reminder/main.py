@@ -1,6 +1,6 @@
 import telebot
 import json
-
+import os
 
 def load_birthdays(): # Create and load a json file
     if not os.path.exists("bd.json"): 
